@@ -1,35 +1,32 @@
 package de.fuberlin.innovonto.brainstormingapp.security;
 
 import de.fuberlin.innovonto.brainstormingapp.backend.session.IdeationSession;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Clock;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.impl.DefaultClock;
+import io.jsonwebtoken.*;
+import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import java.io.Serializable;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.security.Key;
+import java.util.*;
 import java.util.function.Function;
 
 @Component
-public class JwtTokenUtil implements Serializable {
+public class JwtTokenUtil {
 
-    static final String CLAIM_KEY_USERNAME = "sub";
-    static final String CLAIM_KEY_CREATED = "iat";
-    private static final long serialVersionUID = -3301605591108950415L;
-    private Clock clock = DefaultClock.INSTANCE;
-
-    @Value("${jwt.secret}")
-    private String secret;
+    private final Key signingKey;
 
     @Value("${jwt.expiration}")
     private Long expiration;
+
+    private JwtParser jwtParser;
+
+    public JwtTokenUtil(@Value("${jwt.secret}") String encodedKey) {
+        byte[] decodedKey = Base64.getDecoder().decode(encodedKey);
+        this.signingKey = Keys.hmacShaKeyFor(decodedKey);
+        jwtParser = Jwts.parserBuilder().setSigningKey(signingKey).build();
+    }
 
     public String getUsernameFromToken(String token) {
         return getClaimFromToken(token, Claims::getSubject);
@@ -43,21 +40,19 @@ public class JwtTokenUtil implements Serializable {
         return getClaimFromToken(token, Claims::getExpiration);
     }
 
+    //TODO needed?
     public <T> T getClaimFromToken(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = getAllClaimsFromToken(token);
         return claimsResolver.apply(claims);
     }
 
     private Claims getAllClaimsFromToken(String token) {
-        return Jwts.parser()
-                .setSigningKey(secret)
-                .parseClaimsJws(token)
-                .getBody();
+        return jwtParser.parseClaimsJws(token).getBody();
     }
 
     private Boolean isTokenExpired(String token) {
         final Date expiration = getExpirationDateFromToken(token);
-        return expiration.before(clock.now());
+        return expiration.before(new Date());
     }
 
     private Boolean isCreatedBeforeLastPasswordReset(Date created, Date lastPasswordReset) {
@@ -86,15 +81,16 @@ public class JwtTokenUtil implements Serializable {
     }
 
     private String doGenerateToken(Map<String, Object> claims, String subject) {
-        final Date createdDate = clock.now();
+        final Date createdDate = new Date();
         final Date expirationDate = calculateExpirationDate(createdDate);
+
 
         return Jwts.builder()
                 .setClaims(claims)
                 .setSubject(subject)
                 .setIssuedAt(createdDate)
                 .setExpiration(expirationDate)
-                .signWith(SignatureAlgorithm.HS512, secret)
+                .signWith(signingKey)
                 .compact();
     }
 
@@ -105,7 +101,7 @@ public class JwtTokenUtil implements Serializable {
     }
 
     public String refreshToken(String token) {
-        final Date createdDate = clock.now();
+        final Date createdDate = new Date();
         final Date expirationDate = calculateExpirationDate(createdDate);
 
         final Claims claims = getAllClaimsFromToken(token);
@@ -114,7 +110,7 @@ public class JwtTokenUtil implements Serializable {
 
         return Jwts.builder()
                 .setClaims(claims)
-                .signWith(SignatureAlgorithm.HS512, secret)
+                .signWith(signingKey)
                 .compact();
     }
 

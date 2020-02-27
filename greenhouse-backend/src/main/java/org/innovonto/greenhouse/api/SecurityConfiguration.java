@@ -27,7 +27,13 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
                 //https://spring.io/guides/tutorials/spring-security-and-angular-js/
                 .csrf().disable()
                 .sessionManagement()
-                .sessionCreationPolicy(SessionCreationPolicy.ALWAYS);
+                .sessionCreationPolicy(SessionCreationPolicy.ALWAYS)
+                .and()
+                .formLogin()
+                .and()
+                .authorizeRequests()
+                .anyRequest()
+                .authenticated();
 
         /*
             http.sessionManagement()

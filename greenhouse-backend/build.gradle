@@ -12,12 +12,19 @@ repositories {
 	mavenCentral()
 }
 
+configurations {
+	compile.exclude module: "spring-boot-starter-tomcat"
+}
+
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-data-rest'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-jetty'
+	implementation 'org.springframework.boot:spring-boot-starter-mustache'
 	runtimeOnly 'com.h2database:h2'
+
 
 	//RDF Handling: Jena
 	compile group: 'org.apache.jena', name: 'jena-core', version: '3.14.0'
